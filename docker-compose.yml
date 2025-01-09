@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:14
+    container_name: nebula_task_db
+    environment:
+      POSTGRES_USER: api_dev_user
+      POSTGRES_PASSWORD: testpassword
+      POSTGRES_DB: nebula_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: nebula_task_app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    env_file:
+      - .development.env
+    volumes:
+      - .:/usr/src/app
+
+volumes:
+  db_data:
