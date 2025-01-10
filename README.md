@@ -97,3 +97,9 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+To set specific dir for example from your personal GDrive you need to do following steps:
+1. Create dir.
+2. Add permissions to specific dir for service account.
+3. Get dir id
+4. Set it in env.

@@ -1,11 +1,14 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import axios from 'axios';
 import { Readable } from 'stream';
 
 import { FileEntity } from './entities/file.entity';
 import { GoogleDriveService } from './google-drive.service';
+import { HttpService } from '@nestjs/axios';
+import { lastValueFrom } from 'rxjs';
+import { FileViewModel } from './view-models';
+import { FileViewModelFactory } from './model-factories';
 
 @Injectable()
 export class FilesService implements IFilesService {
@@ -16,19 +19,23 @@ export class FilesService implements IFilesService {
     // TODO: Implement repository pattern for FileEntity
     private readonly fileRepository: Repository<FileEntity>,
     private readonly googleDriveService: GoogleDriveService, // Dependency for Google Drive operations
+    private readonly httpService: HttpService,
+
+    private readonly fileViewModelFactory: FileViewModelFactory,
   ) { }
 
   /**
   * Handles multiple file uploads concurrently
   * @param urls Array of file URLs to process
   */
-  public async processMultipleFiles(urls: string[]): Promise<FileEntity[]> {
+  public async uploadFiles(urls: string[]): Promise<FileEntity[]> {
     try {
       const results = await Promise.all(urls.map((url) => this.handleFileProcessing(url)));
 
       return results;
     } catch (error) {
       this.logger.error('Error processing multiple files', error.stack);
+      
       throw new HttpException('Failed to process files', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -37,8 +44,10 @@ export class FilesService implements IFilesService {
    * Retrieves all file records from the database
    * @returns A list of file entities
    */
-  public async getAllFiles(): Promise<FileEntity[]> {
-    return this.fileRepository.find();
+  public async getAllFiles(): Promise<FileViewModel[]> {
+    const files = await this.fileRepository.find();
+
+    return this.fileViewModelFactory.initRoleListViewModel(files);
   }
 
   /**
@@ -46,24 +55,57 @@ export class FilesService implements IFilesService {
   * @param url The URL of the file to process
   */
   private async handleFileProcessing(url: string): Promise<FileEntity> {
-    const fileStream = await this.downloadFileStream(url);
-    const metadata = await this.extractFileMetadata(url, fileStream);
-    const driveFileId = await this.uploadToGoogleDrive(fileStream, metadata.fileName);
+    const { stream: downloadStream, size: fileSize  } = await this.downloadFileStream(url);
 
-    return this.saveFileMetadata(url, driveFileId, metadata);
+    let downloadedSize = 0;
+    downloadStream.on('data', (chunk: Buffer) => {
+      downloadedSize += chunk.length;
+      const progress = (downloadedSize / fileSize) * 100;
+
+      this.logger.debug(`Download progress: ${progress.toFixed(2)}%`);
+    });
+
+    downloadStream.on('end', () => {
+      this.logger.log('File download completed.');
+    });
+
+    const metadata = await this.extractFileMetadata(url, downloadStream);
+    const driveFileId = await this.uploadToGoogleDrive(downloadStream, metadata.fileName);
+
+    if (fileSize) {
+      this.logger.log(`File size: ${(fileSize / (1024 * 1024)).toFixed(2)} MB`);
+    } else {
+      this.logger.warn('Unable to determine file size.');
+    }
+
+    const fileData = await this.saveFileMetadata(url, driveFileId, metadata);
+    this.logger.log(`File metadata saved to database with ID: ${fileData.id}`);
+
+    return fileData;
   }
 
   /**
  * Downloads a file from a URL as a readable stream
  * @param url The file URL
  */
-  private async downloadFileStream(url: string): Promise<Readable> {
+  private async downloadFileStream(url: string): Promise<{ stream: Readable; size: number }> {
     try {
-      const response = await axios.get(url, { responseType: 'stream' });
+      const response = await lastValueFrom(
+        this.httpService.get(url, { responseType: 'stream' }),
+      );
 
-      return response.data as Readable;
+      const totalLength = parseInt(response.headers['content-length'], 10);
+
+      if (isNaN(totalLength)) {
+        this.logger.warn('Failed to retrieve file size from Content-Length header.');
+      } else {
+        this.logger.log(`Retrieved file size: ${(totalLength / (1024 * 1024)).toFixed(2)} MB`);
+      }
+
+      return { stream: response.data, size: totalLength };
     } catch (error) {
       this.logger.error(`Failed to download file from URL: ${url}`, error.stack);
+
       throw new HttpException('Failed to download file', HttpStatus.BAD_REQUEST);
     }
   }
@@ -81,7 +123,7 @@ export class FilesService implements IFilesService {
     try {
       const contentType = (fileStream as any).headers?.['content-type'] || '';
       const contentLength = parseInt((fileStream as any).headers?.['content-length'] || '0', 10);
-      const fileName = url.split('/').pop() || 'unknown_file';
+      const fileName = url.split('/').pop()?.split('?')[0] || 'unknown_file';
 
       return {
         fileName,
@@ -102,10 +144,12 @@ export class FilesService implements IFilesService {
   // TODO: try get rid of this wrapper
   private async uploadToGoogleDrive(fileStream: Readable, fileName: string): Promise<string> {
     try {
-      return await this.googleDriveService.uploadFile(fileStream, fileName);
+      const fileData = await this.googleDriveService.uploadFile(fileStream, fileName);
 
+      return fileData.gDriveId;
     } catch (error) {
       this.logger.error(`Failed to upload file to Google Drive: ${fileName}`, error.stack);
+
       throw new HttpException('Failed to upload file to Google Drive', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -133,6 +177,7 @@ export class FilesService implements IFilesService {
       return await this.fileRepository.save(fileEntity);
     } catch (error) {
       this.logger.error(`Failed to save file metadata for URL: ${url}`, error.stack);
+
       throw new HttpException('Failed to save file metadata', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -143,10 +188,10 @@ export interface IFilesService {
   /**
    * Process multiple file URLs
    */
-  processMultipleFiles(urls: string[]): Promise<FileEntity[]>;
+  uploadFiles(urls: string[]): Promise<FileEntity[]>;
 
   /**
    * Retrieve all file records from DB
    */
-  getAllFiles(): Promise<FileEntity[]>;
+  getAllFiles():  Promise<FileViewModel[]>;
 }

@@ -1,7 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BaseEntity } from 'typeorm';
 
 @Entity()
-export class FileEntity {
+export class FileEntity extends BaseEntity {
     @PrimaryGeneratedColumn()
     id: number;
 
@@ -12,7 +12,7 @@ export class FileEntity {
     driveFileId: string;
 
     @Column()
-    fileName?: string;
+    fileName: string;
 
     @Column()
     mimeType?: string;

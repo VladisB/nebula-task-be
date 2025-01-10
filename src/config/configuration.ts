@@ -14,5 +14,6 @@ export default () => ({
   google: {
     keyFile: process.env.GOOGLE_KEY_FILE, // File path
     scopes: ['https://www.googleapis.com/auth/drive'], // TODO: Check it
+    gDriveFolderId: process.env.GOOGLE_DRIVE_FOLDER_ID
   },
 });
