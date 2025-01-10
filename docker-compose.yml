@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  db:
+  postgres:
     image: postgres:14
     container_name: nebula_task_db
     environment:
@@ -18,12 +18,17 @@ services:
     container_name: nebula_task_app
     ports:
       - "3000:3000"
+      - "9229:9229"       # Debugger port for Node.js
     depends_on:
-      - db
+      - postgres
     env_file:
       - .development.env
+    environment:
+      DATABASE_HOST: postgres
     volumes:
       - .:/usr/src/app
+      - /usr/src/app/node_modules
+    command: npm run start:debug
 
 volumes:
   db_data:
