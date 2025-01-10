@@ -4,7 +4,7 @@ import * as dotenv from "dotenv";
 import { join } from "path";
 
 // Load environment variables
-dotenv.config({ path: join(__dirname, `../../.${process.env.NODE_ENV}.env`) });
+dotenv.config({ path: join(__dirname, `../../.${process.env.NODE_ENV || 'development'}.env`) });
 
 @Injectable()
 export class MigrationDataSourceConfigService {
