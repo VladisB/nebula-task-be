@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BaseEntity } from 'typeorm';
 
-@Entity()
+@Entity('file')
 export class FileEntity extends BaseEntity {
     @PrimaryGeneratedColumn()
     id: number;
@@ -17,7 +17,7 @@ export class FileEntity extends BaseEntity {
     @Column()
     mimeType?: string;
 
-    @Column()
+    @Column({ type: 'bigint' })
     size?: number;
 
     @CreateDateColumn({

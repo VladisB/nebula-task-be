@@ -2,7 +2,6 @@ import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Readable } from 'stream';
-
 import { FileEntity } from './entities/file.entity';
 import { GoogleDriveService } from './google-drive.service';
 import { HttpService } from '@nestjs/axios';
@@ -16,9 +15,9 @@ export class FilesService implements IFilesService {
 
   constructor(
     @InjectRepository(FileEntity)
-    // TODO: Implement repository pattern for FileEntity
+    // TODO: Implement repository pattern
     private readonly fileRepository: Repository<FileEntity>,
-    private readonly googleDriveService: GoogleDriveService, // Dependency for Google Drive operations
+    private readonly googleDriveService: GoogleDriveService,
     private readonly httpService: HttpService,
 
     private readonly fileViewModelFactory: FileViewModelFactory,
@@ -28,14 +27,14 @@ export class FilesService implements IFilesService {
   * Handles multiple file uploads concurrently
   * @param urls Array of file URLs to process
   */
-  public async uploadFiles(urls: string[]): Promise<FileEntity[]> {
+  public async uploadFiles(urls: string[]): Promise<FileViewModel[]> {
     try {
       const results = await Promise.all(urls.map((url) => this.handleFileProcessing(url)));
 
-      return results;
+      return this.fileViewModelFactory.initRoleListViewModel(results);
     } catch (error) {
       this.logger.error('Error processing multiple files', error.stack);
-      
+
       throw new HttpException('Failed to process files', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -70,7 +69,7 @@ export class FilesService implements IFilesService {
     });
 
     const metadata = await this.extractFileMetadata(url, downloadStream);
-    const driveFileId = await this.uploadToGoogleDrive(downloadStream, metadata.fileName);
+    const { gDriveId } = await this.googleDriveService.uploadFile(downloadStream, metadata.fileName);
 
     if (fileSize) {
       this.logger.log(`File size: ${(fileSize / (1024 * 1024)).toFixed(2)} MB`);
@@ -78,7 +77,7 @@ export class FilesService implements IFilesService {
       this.logger.warn('Unable to determine file size.');
     }
 
-    const fileData = await this.saveFileMetadata(url, driveFileId, metadata);
+    const fileData = await this.saveFileMetadata(url, gDriveId, metadata);
     this.logger.log(`File metadata saved to database with ID: ${fileData.id}`);
 
     return fileData;
@@ -137,24 +136,6 @@ export class FilesService implements IFilesService {
   }
 
   /**
-   * Uploads a file stream to Google Drive
-   * @param fileStream The file stream
-   * @param fileName The name of the file
-   */
-  // TODO: try get rid of this wrapper
-  private async uploadToGoogleDrive(fileStream: Readable, fileName: string): Promise<string> {
-    try {
-      const fileData = await this.googleDriveService.uploadFile(fileStream, fileName);
-
-      return fileData.gDriveId;
-    } catch (error) {
-      this.logger.error(`Failed to upload file to Google Drive: ${fileName}`, error.stack);
-
-      throw new HttpException('Failed to upload file to Google Drive', HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  /**
    * Saves file metadata to the database
    * @param url The file's original URL
    * @param driveFileId The Google Drive file ID
@@ -188,7 +169,7 @@ export interface IFilesService {
   /**
    * Process multiple file URLs
    */
-  uploadFiles(urls: string[]): Promise<FileEntity[]>;
+  uploadFiles(urls: string[]): Promise<FileViewModel[]>;
 
   /**
    * Retrieve all file records from DB
