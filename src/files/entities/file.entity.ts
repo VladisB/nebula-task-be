@@ -1,37 +1,44 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BaseEntity } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  BaseEntity,
+} from 'typeorm';
 
 @Entity('file')
 export class FileEntity extends BaseEntity {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column()
-    originalUrl: string;
+  @Column()
+  originalUrl: string;
 
-    @Column()
-    driveFileId: string;
+  @Column()
+  driveFileId: string;
 
-    @Column()
-    fileName: string;
+  @Column()
+  fileName: string;
 
-    @Column()
-    mimeType?: string;
+  @Column()
+  mimeType?: string;
 
-    @Column({ type: 'bigint' })
-    size?: number;
+  @Column({ type: 'bigint' })
+  size?: number;
 
-    @CreateDateColumn({
-        type: "timestamp",
-        default: () => "CURRENT_TIMESTAMP(6)",
-        name: "created_at",
-    })
-    public createdAt: Date;
+  @CreateDateColumn({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP(6)',
+    name: 'created_at',
+  })
+  public createdAt: Date;
 
-    @UpdateDateColumn({
-        type: "timestamp",
-        default: () => "CURRENT_TIMESTAMP(6)",
-        onUpdate: "CURRENT_TIMESTAMP(6)",
-        name: "updated_at",
-    })
-    public updatedAt: Date;
+  @UpdateDateColumn({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP(6)',
+    onUpdate: 'CURRENT_TIMESTAMP(6)',
+    name: 'updated_at',
+  })
+  public updatedAt: Date;
 }

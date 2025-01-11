@@ -20,4 +20,4 @@ import { FilesModule } from './files/files.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

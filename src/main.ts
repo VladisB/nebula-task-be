@@ -11,7 +11,7 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter(httpAdapter));
 
   const configService = app.get(ConfigService);
-  const PORT = configService.get("app.port");
+  const PORT = configService.get('app.port');
 
   await app.listen(PORT, () => console.log(`Server started on port = ${PORT}`));
 }

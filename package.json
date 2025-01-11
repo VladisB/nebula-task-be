@@ -79,6 +79,10 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "_moduleAliases": {
+        "^@app/(.*)$": "<rootDir>/../src/$1",
+        "^@common/(.*)$": "<rootDir>/../src/common/$1"
+    }
   }
 }

@@ -6,6 +6,7 @@ import { FileEntity } from './entities/file.entity';
 import { GoogleDriveService } from './google-drive.service';
 import { HttpModule } from '@nestjs/axios';
 import { FileViewModelFactory } from './model-factories';
+import { FilesRepository, IFilesRepository } from './files.repository';
 
 @Module({
   imports: [
@@ -13,6 +14,11 @@ import { FileViewModelFactory } from './model-factories';
     HttpModule,
   ],
   controllers: [FilesController],
-  providers: [FilesService, GoogleDriveService, FileViewModelFactory],
+  providers: [
+    FilesService,
+    GoogleDriveService,
+    FileViewModelFactory,
+    { provide: IFilesRepository, useClass: FilesRepository },
+  ],
 })
-export class FilesModule { }
+export class FilesModule {}
